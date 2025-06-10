@@ -1,0 +1,37 @@
+# Next.js build output
+.next
+out
+
+# Node modules
+node_modules
+
+# Coverage reports
+coverage
+
+# Build files
+dist
+build
+
+# Cache
+.cache
+.eslintcache
+
+# Environment variables
+.env*
+!.env.example
+
+# Log files
+*.log
+
+# Editor directories
+.idea
+.vscode
+
+# Package files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Generated files
+public/sw.js
+public/workbox-*.js
