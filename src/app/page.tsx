@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useFamily } from '@/contexts/family-context'
+import type { FamilyMember, Chore } from '@/types'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -15,25 +16,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import AdminPanel from './components/admin-panel'
 import { ThemeToggle } from '@/components/theme-toggle'
+
 function HomePage() {
   const [view, setView] = useState<'today' | 'week' | 'admin'>('today')
-  const { familyMembers, toggleChore, deleteFamilyMember, reassignChore } = useFamily()
+  const { familyMembers, toggleChore, deleteFamilyMember } = useFamily()
   const [isToggling, setIsToggling] = useState<{ memberId: string; choreId: string } | null>(null)
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null)
-  const [reassigning, setReassigning] = useState<{
-    fromMemberId: string
-    choreId: string
-    choreName: string
-  } | null>(null)
 
   const handleToggleChore = async (memberId: string, choreId: string) => {
     setIsToggling({ memberId, choreId })
@@ -48,17 +38,6 @@ function HomePage() {
     if (memberToDelete) {
       await deleteFamilyMember(memberToDelete)
       setMemberToDelete(null)
-    }
-  }
-
-  const handleReassignChore = (fromMemberId: string, choreId: string, choreName: string) => {
-    setReassigning({ fromMemberId, choreId, choreName })
-  }
-
-  const handleConfirmReassign = async (toMemberId: string) => {
-    if (reassigning) {
-      await reassignChore(reassigning.fromMemberId, toMemberId, reassigning.choreId)
-      setReassigning(null)
     }
   }
 
@@ -111,7 +90,7 @@ function HomePage() {
                 This Week&apos;s Schedule
               </h2>
             )}
-            {familyMembers.map((member) => (
+            {familyMembers.map((member: FamilyMember) => (
               <Card
                 key={member.id}
                 className='p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg'
@@ -136,7 +115,7 @@ function HomePage() {
                   </p>
                 ) : (
                   <ul className='space-y-2'>
-                    {member.chores.map((chore) => (
+                    {member.chores.map((chore: Chore) => (
                       <li
                         key={chore.id}
                         className='flex items-center justify-between rounded-md p-2 transition-all duration-300 hover:bg-primary/5'
@@ -158,27 +137,6 @@ function HomePage() {
                           )}
                         </div>
                         <div className='flex items-center gap-2'>
-                          <Select
-                            onValueChange={handleConfirmReassign}
-                            onOpenChange={(open) => {
-                              if (open) {
-                                handleReassignChore(member.id, chore.id, chore.name)
-                              }
-                            }}
-                          >
-                            <SelectTrigger className='h-8 w-8 p-0'>
-                              <SelectValue placeholder='↔' />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {familyMembers
-                                .filter((m) => m.id !== member.id)
-                                .map((m) => (
-                                  <SelectItem key={m.id} value={m.id}>
-                                    Assign to {m.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectContent>
-                          </Select>
                           <Button
                             variant='ghost'
                             size='sm'

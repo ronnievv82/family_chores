@@ -408,6 +408,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
 
   const deleteFamilyMember = async (id: string) => {
     const loadingKey = `deleteMember-${id}`
+    console.log('Deleting member with ID:', id)
     setLoadingState(loadingKey, true)
     setError(null)
 

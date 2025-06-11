@@ -35,6 +35,7 @@ export default function AdminPanel() {
     addChoreTemplate,
     deleteChoreTemplate,
     assignChoreFromTemplate,
+    deleteFamilyMember,
     isLoading,
     error,
   } = useFamily()
@@ -45,6 +46,7 @@ export default function AdminPanel() {
     recurrence: 'daily',
   })
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
+  const [memberToDelete, setMemberToDelete] = useState<string | null>(null)
   const [assigningTemplate, setAssigningTemplate] = useState<{
     templateId: string
     templateName: string
@@ -94,6 +96,13 @@ export default function AdminPanel() {
   const handleKeyPress = (e: React.KeyboardEvent, handler: () => void) => {
     if (e.key === 'Enter') {
       handler()
+    }
+  }
+
+  const handleDeleteMember = async () => {
+    if (memberToDelete) {
+      await deleteFamilyMember(memberToDelete)
+      setMemberToDelete(null)
     }
   }
 
@@ -147,6 +156,14 @@ export default function AdminPanel() {
                           </div>
                           <span>{member.name}</span>
                         </div>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          onClick={() => setMemberToDelete(member.id)}
+                          className='text-destructive'
+                        >
+                          ✕
+                        </Button>
                       </CardContent>
                     </Card>
                   ))}
@@ -304,6 +321,26 @@ export default function AdminPanel() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={memberToDelete !== null} onOpenChange={() => setMemberToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Family Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this family member? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteMember}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={templateToDelete !== null} onOpenChange={() => setTemplateToDelete(null)}>
         <AlertDialogContent>
