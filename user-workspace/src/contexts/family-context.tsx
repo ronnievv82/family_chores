@@ -8,6 +8,7 @@ interface FamilyContextType {
   familyMembers: FamilyMember[]
   setFamilyMembers: (members: FamilyMember[]) => void
   addFamilyMember: (name: string) => Promise<void>
+  deleteFamilyMember: (id: string) => Promise<void>
   addChore: (memberId: string, chore: Omit<Chore, 'id'>) => Promise<void>
   toggleChore: (memberId: string, choreId: string) => Promise<void>
   isLoading: { [key: string]: boolean }
@@ -187,12 +188,37 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const deleteFamilyMember = async (id: string) => {
+    const loadingKey = `deleteMember-${id}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    // Store previous state for potential rollback
+    const previousMembers = [...familyMembers]
+
+    try {
+      // Optimistic update
+      setFamilyMembers((prev) => prev.filter((member) => member.id !== id))
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      // await api.deleteFamilyMember(id)
+    } catch (error) {
+      // Rollback on error
+      handleError(error, 'Failed to delete family member')
+      setFamilyMembers(previousMembers)
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
   return (
     <FamilyContext.Provider
       value={{
         familyMembers,
         setFamilyMembers,
         addFamilyMember,
+        deleteFamilyMember,
         addChore,
         toggleChore,
         isLoading,
