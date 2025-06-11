@@ -15,14 +15,27 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import AdminPanel from './components/admin-panel'
 import { ThemeToggle } from '@/components/theme-toggle'
+import type { FamilyMember } from '@/types'
 
 function HomePage() {
   const [view, setView] = useState<'today' | 'week' | 'admin'>('today')
-  const { familyMembers, toggleChore, deleteFamilyMember } = useFamily()
+  const { familyMembers, toggleChore, deleteFamilyMember, reassignChore } = useFamily()
   const [isToggling, setIsToggling] = useState<{ memberId: string; choreId: string } | null>(null)
   const [memberToDelete, setMemberToDelete] = useState<string | null>(null)
+  const [reassigning, setReassigning] = useState<{
+    fromMemberId: string
+    choreId: string
+    choreName: string
+  } | null>(null)
 
   const handleToggleChore = async (memberId: string, choreId: string) => {
     setIsToggling({ memberId, choreId })
@@ -41,6 +54,17 @@ function HomePage() {
     if (memberToDelete) {
       await deleteFamilyMember(memberToDelete)
       setMemberToDelete(null)
+    }
+  }
+
+  const handleReassignChore = (fromMemberId: string, choreId: string, choreName: string) => {
+    setReassigning({ fromMemberId, choreId, choreName })
+  }
+
+  const handleConfirmReassign = async (toMemberId: string) => {
+    if (reassigning) {
+      await reassignChore(reassigning.fromMemberId, toMemberId, reassigning.choreId)
+      setReassigning(null)
     }
   }
 
@@ -84,7 +108,9 @@ function HomePage() {
           <AdminPanel />
         ) : (
           <div
-            className={`grid grid-cols-1 ${view === 'today' ? 'md:grid-cols-3' : ''} gap-6 duration-500 animate-in fade-in slide-in-from-bottom`}
+            className={`grid grid-cols-1 ${
+              view === 'today' ? 'md:grid-cols-3' : ''
+            } gap-6 duration-500 animate-in fade-in slide-in-from-bottom`}
           >
             {view === 'week' && (
               <h2 className='text-2xl font-bold text-foreground transition-colors duration-300 hover:text-primary'>
@@ -98,7 +124,7 @@ function HomePage() {
               >
                 <div className='mb-4 flex items-center gap-4'>
                   <Avatar className='h-12 w-12 ring-2 ring-primary/20 transition-all duration-300 hover:ring-primary/40'>
-                    <AvatarFallback className={`${member.color} transition-colors duration-300`}>
+                    <AvatarFallback className={`${member.color}`}>
                       <span className='text-lg font-semibold text-white'>{member.initial}</span>
                     </AvatarFallback>
                   </Avatar>
@@ -129,7 +155,7 @@ function HomePage() {
                         key={chore.id}
                         className='flex items-center justify-between rounded-md p-2 transition-all duration-300 hover:bg-primary/5'
                       >
-                        <div>
+                        <div className='flex flex-col gap-1'>
                           <span
                             className={`transition-all duration-300 ${
                               chore.completed
@@ -145,21 +171,50 @@ function HomePage() {
                             </p>
                           )}
                         </div>
-                        <Button
-                          variant='ghost'
-                          size='sm'
-                          onClick={() => handleToggleChore(member.id, chore.id)}
-                          disabled={
-                            isToggling?.memberId === member.id && isToggling?.choreId === chore.id
-                          }
-                          className='transition-all duration-300 hover:scale-110'
-                        >
-                          {isToggling?.memberId === member.id && isToggling?.choreId === chore.id
-                            ? '...'
-                            : chore.completed
-                              ? '↩️'
-                              : '✓'}
-                        </Button>
+                        <div className='flex items-center gap-2'>
+                          <Select
+                            onValueChange={(value) =>
+                              handleConfirmReassign(value)
+                            }
+                            onOpenChange={(open) => {
+                              if (open) {
+                                handleReassignChore(member.id, chore.id, chore.name)
+                              }
+                            }}
+                          >
+                            <SelectTrigger className='h-8 w-8 p-0'>
+                              <SelectValue placeholder='↔' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {familyMembers
+                                .filter((m) => m.id !== member.id)
+                                .map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>
+                                    Assign to {m.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant='ghost'
+                            size='sm'
+                            onClick={() => handleToggleChore(member.id, chore.id)}
+                            disabled={
+                              isToggling?.memberId === member.id &&
+                              isToggling?.choreId === chore.id
+                            }
+                            className='transition-all duration-300 hover:scale-110'
+                          >
+                            {isToggling?.memberId === member.id &&
+                            isToggling?.choreId === chore.id ? (
+                              '...'
+                            ) : chore.completed ? (
+                              '↩️'
+                            ) : (
+                              '✓'
+                            )}
+                          </Button>
+                        </div>
                       </li>
                     ))}
                   </ul>
