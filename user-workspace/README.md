@@ -1,36 +1,188 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Family Chore Tracker - Raspberry Pi 4B Installation Guide
 
-## Getting Started
+This guide will help you install and run the Family Chore Tracker application on your Raspberry Pi 4B.
 
-First, run the development server:
+## Prerequisites
 
+1. Raspberry Pi 4B with Raspberry Pi OS (64-bit recommended)
+2. Node.js 18.17 or later
+3. Git
+
+### Installing Prerequisites
+
+1. Update your Raspberry Pi:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+sudo apt update
+sudo apt upgrade -y
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Install Node.js (using Node Version Manager):
+```bash
+# Install NVM
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+# Reload shell configuration
+source ~/.bashrc
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Install Node.js LTS
+nvm install --lts
 
-## Learn More
+# Verify installation
+node --version
+npm --version
+```
 
-To learn more about Next.js, take a look at the following resources:
+3. Install Git:
+```bash
+sudo apt install git -y
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Quick Start (Recommended)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Clone the repository:
+```bash
+git clone https://github.com/ronnievv82/family_chores.git
+cd family_chores
+```
 
-## Deploy on Vercel
+2. Run the quick-start script:
+```bash
+./quick-start.sh
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The application will be available at `http://localhost:8000`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Manual Installation Steps
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+3. Create a production build:
+```bash
+npm run build
+```
+
+4. Start the application:
+```bash
+# Development mode
+PORT=8000 npm run dev
+
+# Production mode
+PORT=8000 npm run start
+```
+
+The application will be available at `http://localhost:8000`
+
+## Running on Boot (Optional)
+
+To make the application start automatically when your Raspberry Pi boots:
+
+1. Create a systemd service file:
+```bash
+sudo nano /etc/systemd/system/chore-tracker.service
+```
+
+2. Add the following content (adjust paths as needed):
+```ini
+[Unit]
+Description=Family Chore Tracker
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/family_chores
+Environment=PORT=8000
+Environment=NODE_ENV=production
+ExecStart=/home/pi/.nvm/versions/node/v20.x.x/bin/npm start
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+3. Enable and start the service:
+```bash
+sudo systemctl enable chore-tracker
+sudo systemctl start chore-tracker
+```
+
+## Troubleshooting
+
+1. If you get "next: not found" error:
+   ```bash
+   # Make sure you're in the project directory and dependencies are installed
+   cd family_chores
+   npm install
+   ```
+
+2. If you encounter memory issues:
+   - Increase swap space:
+   ```bash
+   sudo dphys-swapfile swapoff
+   sudo nano /etc/dphys-swapfile
+   # Set CONF_SWAPSIZE=2048
+   sudo dphys-swapfile setup
+   sudo dphys-swapfile swapon
+   ```
+
+2. If the application is slow:
+   - Consider running in production mode
+   - Ensure your Raspberry Pi has adequate cooling
+   - Monitor resource usage with `top` or `htop`
+
+3. Port issues:
+   - Check if port 8000 is available:
+   ```bash
+   sudo lsof -i :8000
+   ```
+   - Kill any process using the port:
+   ```bash
+   sudo kill $(sudo lsof -t -i:8000)
+   ```
+
+## Performance Tips
+
+1. Use production mode for better performance:
+```bash
+NODE_ENV=production PORT=8000 npm run start
+```
+
+2. Monitor temperature:
+```bash
+vcgencmd measure_temp
+```
+
+3. Monitor memory usage:
+```bash
+free -h
+```
+
+## Accessing from Other Devices
+
+To access the application from other devices on your network:
+
+1. Find your Raspberry Pi's IP address:
+```bash
+hostname -I
+```
+
+2. Access the application using:
+```
+http://<raspberry-pi-ip>:8000
+```
+
+## Security Considerations
+
+1. Change default passwords
+2. Keep system updated
+3. Use a firewall:
+```bash
+sudo apt install ufw
+sudo ufw allow 8000
+sudo ufw enable
+```
+
+For additional support or issues, please refer to the project's issue tracker.
