@@ -24,8 +24,6 @@ import {
 } from '@/components/ui/select'
 import AdminPanel from './components/admin-panel'
 import { ThemeToggle } from '@/components/theme-toggle'
-import type { FamilyMember } from '@/types'
-
 function HomePage() {
   const [view, setView] = useState<'today' | 'week' | 'admin'>('today')
   const { familyMembers, toggleChore, deleteFamilyMember, reassignChore } = useFamily()
@@ -44,10 +42,6 @@ function HomePage() {
     } finally {
       setIsToggling(null)
     }
-  }
-
-  const handleDeleteMember = (memberId: string) => {
-    setMemberToDelete(memberId)
   }
 
   const confirmDelete = async () => {
@@ -165,9 +159,7 @@ function HomePage() {
                         </div>
                         <div className='flex items-center gap-2'>
                           <Select
-                            onValueChange={(value) =>
-                              handleConfirmReassign(value)
-                            }
+                            onValueChange={handleConfirmReassign}
                             onOpenChange={(open) => {
                               if (open) {
                                 handleReassignChore(member.id, chore.id, chore.name)
@@ -192,19 +184,15 @@ function HomePage() {
                             size='sm'
                             onClick={() => handleToggleChore(member.id, chore.id)}
                             disabled={
-                              isToggling?.memberId === member.id &&
-                              isToggling?.choreId === chore.id
+                              isToggling?.memberId === member.id && isToggling?.choreId === chore.id
                             }
                             className='transition-all duration-300 hover:scale-110'
                           >
-                            {isToggling?.memberId === member.id &&
-                            isToggling?.choreId === chore.id ? (
-                              '...'
-                            ) : chore.completed ? (
-                              '↩️'
-                            ) : (
-                              '✓'
-                            )}
+                            {isToggling?.memberId === member.id && isToggling?.choreId === chore.id
+                              ? '...'
+                              : chore.completed
+                                ? '↩️'
+                                : '✓'}
                           </Button>
                         </div>
                       </li>

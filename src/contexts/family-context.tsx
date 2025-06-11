@@ -16,7 +16,11 @@ interface FamilyContextType {
   assignChoreFromTemplate: (templateId: string, memberId: string) => Promise<void>
   toggleChore: (memberId: string, choreId: string) => Promise<void>
   reassignChore: (fromMemberId: string, toMemberId: string, choreId: string) => Promise<void>
-  editChore: (memberId: string, choreId: string, updates: Partial<Omit<Chore, 'id'>>) => Promise<void>
+  editChore: (
+    memberId: string,
+    choreId: string,
+    updates: Partial<Omit<Chore, 'id'>>
+  ) => Promise<void>
   isLoading: { [key: string]: boolean }
   error: string | null
 }
@@ -104,10 +108,10 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
           const parsed = JSON.parse(savedMembers)
           const members = parsed.map((member: FamilyMember) => ({
             ...member,
-            chores: member.chores.map(chore => ({
+            chores: member.chores.map((chore) => ({
               ...chore,
-              dueDate: new Date(chore.dueDate)
-            }))
+              dueDate: new Date(chore.dueDate),
+            })),
           }))
           setFamilyMembers(members)
         } else {
