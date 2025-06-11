@@ -132,14 +132,6 @@ function HomePage() {
                     <h2 className='text-xl font-semibold text-foreground transition-colors duration-300 hover:text-primary'>
                       {member.name}
                     </h2>
-                    <Button
-                      variant='ghost'
-                      size='sm'
-                      onClick={() => handleDeleteMember(member.id)}
-                      className='text-destructive transition-all duration-300 hover:text-destructive/80'
-                    >
-                      ✕
-                    </Button>
                   </div>
                 </div>
                 {member.chores.length === 0 ? (
