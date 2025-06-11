@@ -18,7 +18,8 @@ interface FamilyContextType {
   reassignChore: (fromMemberId: string, toMemberId: string, choreId: string) => Promise<void>
   editChore: (
     memberId: string,
-    choreId: string,
+    choNeed Help
+    reId: string,
     updates: Partial<Omit<Chore, 'id'>>
   ) => Promise<void>
   isLoading: { [key: string]: boolean }
@@ -98,35 +99,26 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
   const [choreTemplates, setChoreTemplates] = useState<ChoreTemplate[]>([])
 
-  // Load data from localStorage on mount
+  // Load data from backend API on mount
   useEffect(() => {
-    const loadData = () => {
+    const loadData = async () => {
       try {
-        // Load family members
-        const savedMembers = localStorage.getItem(MEMBERS_STORAGE_KEY)
-        if (savedMembers) {
-          const parsed = JSON.parse(savedMembers)
-          const members = parsed.map((member: FamilyMember) => ({
-            ...member,
-            chores: member.chores.map((chore) => ({
-              ...chore,
-              dueDate: new Date(chore.dueDate),
-            })),
-          }))
-          setFamilyMembers(members)
-        } else {
-          setFamilyMembers(defaultMembers)
-        }
+        const membersResponse = await fetch('http://localhost:3001/family-members')
+        const membersData = await membersResponse.json()
+        const members = membersData.map((member: FamilyMember) => ({
+          ...member,
+          chores: member.chores.map((chore) => ({
+            ...chore,
+            dueDate: new Date(chore.dueDate),
+          })),
+        }))
+        setFamilyMembers(members)
 
-        // Load chore templates
-        const savedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY)
-        if (savedTemplates) {
-          setChoreTemplates(JSON.parse(savedTemplates))
-        } else {
-          setChoreTemplates(defaultTemplates)
-        }
+        const templatesResponse = await fetch('http://localhost:3001/chore-templates')
+        const templatesData = await templatesResponse.json()
+        setChoreTemplates(templatesData)
       } catch (error) {
-        console.error('Failed to load saved data:', error)
+        console.error('Failed to load data from backend:', error)
         setFamilyMembers(defaultMembers)
         setChoreTemplates(defaultTemplates)
       }
@@ -135,16 +127,43 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     loadData()
   }, [])
 
-  // Save to localStorage whenever data changes
+  // Save to backend API whenever familyMembers changes
   useEffect(() => {
+    const saveMembers = async () => {
+      try {
+        for (const member of familyMembers) {
+          await fetch('http://localhost:3001/family-members', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(member),
+          })
+        }
+      } catch (error) {
+        console.error('Failed to save family members to backend:', error)
+      }
+    }
     if (familyMembers.length > 0) {
-      localStorage.setItem(MEMBERS_STORAGE_KEY, JSON.stringify(familyMembers))
+      saveMembers()
     }
   }, [familyMembers])
 
+  // Save to backend API whenever choreTemplates changes
   useEffect(() => {
+    const saveTemplates = async () => {
+      try {
+        for (const template of choreTemplates) {
+          await fetch('http://localhost:3001/chore-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(template),
+          })
+        }
+      } catch (error) {
+        console.error('Failed to save chore templates to backend:', error)
+      }
+    }
     if (choreTemplates.length > 0) {
-      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(choreTemplates))
+      saveTemplates()
     }
   }, [choreTemplates])
 
@@ -172,18 +191,26 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
       const color = colors[familyMembers.length % colors.length]
 
       const newMember = {
-        id: Date.now().toString(),
         name,
         initial,
         color,
         chores: [],
       }
 
-      setFamilyMembers((prev) => [...prev, newMember])
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      const response = await fetch('http://localhost:3001/family-members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newMember),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add family member')
+      }
+
+      const createdMember = await response.json()
+      setFamilyMembers((prev) => [...prev, createdMember])
     } catch (error) {
       handleError(error, 'Failed to add family member')
-      setFamilyMembers((prev) => prev.slice(0, -1))
     } finally {
       setLoadingState(loadingKey, false)
     }
@@ -195,14 +222,19 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const newTemplate: ChoreTemplate = {
-        ...template,
-        id: Date.now().toString(),
+      const response = await fetch('http://localhost:3001/chore-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add chore template')
       }
 
-      setChoreTemplates((prev) => [...prev, newTemplate])
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      return newTemplate
+      const createdTemplate = await response.json()
+      setChoreTemplates((prev) => [...prev, createdTemplate])
+      return createdTemplate
     } catch (error) {
       handleError(error, 'Failed to add chore template')
       setChoreTemplates((prev) => prev.slice(0, -1))
@@ -220,8 +252,15 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const previousTemplates = [...choreTemplates]
 
     try {
+      const response = await fetch(`http://localhost:3001/chore-templates/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete chore template')
+      }
+
       setChoreTemplates((prev) => prev.filter((template) => template.id !== id))
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (error) {
       handleError(error, 'Failed to delete chore template')
       setChoreTemplates(previousTemplates)
@@ -246,7 +285,15 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         dueDate: new Date(),
       }
 
-      await addChore(memberId, newChore)
+      const response = await fetch(`http://localhost:3001/family-members/${memberId}/chores`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newChore),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to assign chore from template')
+      }
     } catch (error) {
       handleError(error, 'Failed to assign chore from template')
       throw error
@@ -300,20 +347,39 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const previousMembers = [...familyMembers]
 
     try {
+      const member = familyMembers.find((m) => m.id === memberId)
+      if (!member) throw new Error('Member not found')
+
+      const chore = member.chores.find((c) => c.id === choreId)
+      if (!chore) throw new Error('Chore not found')
+
+      const updatedChore = { ...chore, completed: !chore.completed }
+
+      const response = await fetch(
+        `http://localhost:3001/family-members/${memberId}/chores/${choreId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedChore),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to toggle chore')
+      }
+
       setFamilyMembers((members) =>
         members.map((member) =>
           member.id === memberId
             ? {
                 ...member,
                 chores: member.chores.map((chore) =>
-                  chore.id === choreId ? { ...chore, completed: !chore.completed } : chore
+                  chore.id === choreId ? updatedChore : chore
                 ),
               }
             : member
         )
       )
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (error) {
       handleError(error, 'Failed to toggle chore')
       setFamilyMembers(previousMembers)
@@ -330,40 +396,43 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const previousMembers = [...familyMembers]
 
     try {
-      let choreToMove: Chore | undefined
+      const member = familyMembers.find((m) => m.id === fromMemberId)
+      if (!member) throw new Error('Source member not found')
+
+      const chore = member.chores.find((c) => c.id === choreId)
+      if (!chore) throw new Error('Chore not found')
+
+      const response = await fetch(
+        `http://localhost:3001/family-members/${fromMemberId}/chores/${choreId}/reassign/${toMemberId}`,
+        {
+          method: 'PUT',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to reassign chore')
+      }
 
       setFamilyMembers((members) => {
         // First, find and remove the chore from the source member
         const updatedMembers = members.map((member) => {
           if (member.id === fromMemberId) {
-            const updatedChores = member.chores.filter((chore) => {
-              if (chore.id === choreId) {
-                choreToMove = chore
-                return false
-              }
-              return true
-            })
+            const updatedChores = member.chores.filter((chore) => chore.id !== choreId)
             return { ...member, chores: updatedChores }
           }
           return member
         })
 
         // Then, add the chore to the target member
-        if (choreToMove) {
-          return updatedMembers.map((member) =>
-            member.id === toMemberId
-              ? {
-                  ...member,
-                  chores: [...member.chores, choreToMove!],
-                }
-              : member
-          )
-        }
-
-        return updatedMembers
+        return updatedMembers.map((member) =>
+          member.id === toMemberId
+            ? {
+                ...member,
+                chores: [...member.chores, chore],
+              }
+            : member
+        )
       })
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (error) {
       handleError(error, 'Failed to reassign chore')
       setFamilyMembers(previousMembers)
@@ -384,20 +453,39 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const previousMembers = [...familyMembers]
 
     try {
+      const member = familyMembers.find((m) => m.id === memberId)
+      if (!member) throw new Error('Member not found')
+
+      const chore = member.chores.find((c) => c.id === choreId)
+      if (!chore) throw new Error('Chore not found')
+
+      const updatedChore = { ...chore, ...updates }
+
+      const response = await fetch(
+        `http://localhost:3001/family-members/${memberId}/chores/${choreId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedChore),
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to edit chore')
+      }
+
       setFamilyMembers((members) =>
         members.map((member) =>
           member.id === memberId
             ? {
                 ...member,
                 chores: member.chores.map((chore) =>
-                  chore.id === choreId ? { ...chore, ...updates } : chore
+                  chore.id === choreId ? updatedChore : chore
                 ),
               }
             : member
         )
       )
-
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (error) {
       handleError(error, 'Failed to edit chore')
       setFamilyMembers(previousMembers)
@@ -415,8 +503,15 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     const previousMembers = [...familyMembers]
 
     try {
+      const response = await fetch(`http://localhost:3001/family-members/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete family member')
+      }
+
       setFamilyMembers((prev) => prev.filter((member) => member.id !== id))
-      await new Promise((resolve) => setTimeout(resolve, 500))
     } catch (error) {
       handleError(error, 'Failed to delete family member')
       setFamilyMembers(previousMembers)
