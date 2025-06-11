@@ -22,7 +22,7 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
   experimental: {
-    optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react']
+    optimizePackageImports: ['@radix-ui/react-icons', 'lucide-react'],
   },
 }
 
