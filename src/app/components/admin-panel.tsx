@@ -46,8 +46,8 @@ export default function AdminPanel() {
   })
   const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
   const [assigningTemplate, setAssigningTemplate] = useState<{
-    templateId: string;
-    templateName: string;
+    templateId: string
+    templateName: string
   } | null>(null)
 
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -192,8 +192,8 @@ export default function AdminPanel() {
                     }
                     disabled={isLoading[`addTemplate-${newChore.name}`]}
                   >
-                    <SelectTrigger>
-                      <SelectValue />
+                    <SelectTrigger className='w-full'>
+                      <SelectValue placeholder='Select recurrence' />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value='daily'>Daily</SelectItem>
