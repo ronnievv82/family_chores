@@ -14,18 +14,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
-import { ChoreTemplate } from '@/types'
+import type { ChoreTemplate } from '@/types'
 
 export default function AdminPanel() {
-  const { familyMembers, addFamilyMember, isLoading, error } = useFamily()
-  const [choreTemplates, setChoreTemplates] = useState<ChoreTemplate[]>([])
+  const {
+    familyMembers,
+    choreTemplates,
+    addFamilyMember,
+    addChoreTemplate,
+    deleteChoreTemplate,
+    assignChoreFromTemplate,
+    isLoading,
+    error,
+  } = useFamily()
+
   const [newMemberName, setNewMemberName] = useState('')
   const [newChore, setNewChore] = useState<Partial<ChoreTemplate>>({
     days: [],
     recurrence: 'daily',
   })
-  const [isAddingChore, setIsAddingChore] = useState(false)
+  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
+  const [assigningTemplate, setAssigningTemplate] = useState<{
+    templateId: string;
+    templateName: string;
+  } | null>(null)
 
   const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -41,27 +64,30 @@ export default function AdminPanel() {
   }
 
   const handleAddChore = async () => {
-    if (!newChore.name?.trim() || isAddingChore) return
+    if (!newChore.name?.trim() || isLoading[`addTemplate-${newChore.name}`]) return
 
     try {
-      setIsAddingChore(true)
-      const newTemplate = {
-        ...(newChore as ChoreTemplate),
-        id: Date.now().toString(),
-      }
-
-      setChoreTemplates((prev) => [...prev, newTemplate])
+      await addChoreTemplate(newChore as Omit<ChoreTemplate, 'id'>)
       setNewChore({
         days: [],
         recurrence: 'daily',
       })
     } catch (error) {
-      // Log error silently in production
-      if (process.env.NODE_ENV === 'development') {
-        console.error('Failed to add chore template:', error)
-      }
-    } finally {
-      setIsAddingChore(false)
+      // Error is handled by the context
+    }
+  }
+
+  const handleDeleteTemplate = async () => {
+    if (templateToDelete) {
+      await deleteChoreTemplate(templateToDelete)
+      setTemplateToDelete(null)
+    }
+  }
+
+  const handleAssignTemplate = async (memberId: string) => {
+    if (assigningTemplate) {
+      await assignChoreFromTemplate(assigningTemplate.templateId, memberId)
+      setAssigningTemplate(null)
     }
   }
 
@@ -141,7 +167,7 @@ export default function AdminPanel() {
                     placeholder='e.g., Make bed'
                     value={newChore.name || ''}
                     onChange={(e) => setNewChore({ ...newChore, name: e.target.value })}
-                    disabled={isAddingChore}
+                    disabled={isLoading[`addTemplate-${newChore.name}`]}
                     aria-label='Chore name'
                   />
                 </div>
@@ -152,31 +178,9 @@ export default function AdminPanel() {
                     placeholder='Additional details about the chore'
                     value={newChore.description || ''}
                     onChange={(e) => setNewChore({ ...newChore, description: e.target.value })}
-                    disabled={isAddingChore}
+                    disabled={isLoading[`addTemplate-${newChore.name}`]}
                     aria-label='Chore description'
                   />
-                </div>
-
-                <div>
-                  <Label>Assign To</Label>
-                  <Select
-                    value={newChore.assignedTo}
-                    onValueChange={(value: string) =>
-                      setNewChore({ ...newChore, assignedTo: value })
-                    }
-                    disabled={isAddingChore}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder='Select family member' />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {familyMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
 
                 <div>
@@ -186,7 +190,7 @@ export default function AdminPanel() {
                     onValueChange={(value: 'daily' | 'weekly') =>
                       setNewChore({ ...newChore, recurrence: value })
                     }
-                    disabled={isAddingChore}
+                    disabled={isLoading[`addTemplate-${newChore.name}`]}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -215,7 +219,7 @@ export default function AdminPanel() {
                                 : [...days, day],
                             })
                           }}
-                          disabled={isAddingChore}
+                          disabled={isLoading[`addTemplate-${newChore.name}`]}
                         >
                           {day}
                         </Button>
@@ -227,9 +231,9 @@ export default function AdminPanel() {
                 <Button
                   onClick={handleAddChore}
                   className='w-full transition-all duration-300 hover:scale-[1.02]'
-                  disabled={isAddingChore || !newChore.name?.trim()}
+                  disabled={isLoading[`addTemplate-${newChore.name}`] || !newChore.name?.trim()}
                 >
-                  {isAddingChore ? 'Creating...' : 'Create Chore Template'}
+                  {isLoading[`addTemplate-${newChore.name}`] ? 'Creating...' : 'Create Template'}
                 </Button>
               </div>
             </div>
@@ -243,25 +247,52 @@ export default function AdminPanel() {
                   {choreTemplates.map((chore) => (
                     <Card key={chore.id}>
                       <CardContent className='p-4 transition-all duration-300 hover:shadow-md'>
-                        <div className='space-y-2'>
-                          <h4 className='font-semibold'>{chore.name}</h4>
-                          {chore.description && (
-                            <p className='text-sm text-muted-foreground'>{chore.description}</p>
-                          )}
-                          <div className='flex gap-2 text-sm'>
-                            <span className='text-muted-foreground'>Assigned to:</span>
-                            <span>
-                              {familyMembers.find((m) => m.id === chore.assignedTo)?.name ||
-                                'Unassigned'}
-                            </span>
+                        <div className='flex items-center justify-between'>
+                          <div className='space-y-2'>
+                            <h4 className='font-semibold'>{chore.name}</h4>
+                            {chore.description && (
+                              <p className='text-sm text-muted-foreground'>{chore.description}</p>
+                            )}
+                            <div className='flex gap-2 text-sm'>
+                              <span className='text-muted-foreground'>Recurrence:</span>
+                              <span>
+                                {chore.recurrence === 'daily'
+                                  ? 'Daily'
+                                  : `Weekly (${chore.days.join(', ')})`}
+                              </span>
+                            </div>
                           </div>
-                          <div className='flex gap-2 text-sm'>
-                            <span className='text-muted-foreground'>Recurrence:</span>
-                            <span>
-                              {chore.recurrence === 'daily'
-                                ? 'Daily'
-                                : `Weekly (${chore.days.join(', ')})`}
-                            </span>
+                          <div className='flex gap-2'>
+                            <Select
+                              onValueChange={(value) => handleAssignTemplate(value)}
+                              onOpenChange={(open) => {
+                                if (open) {
+                                  setAssigningTemplate({
+                                    templateId: chore.id,
+                                    templateName: chore.name,
+                                  })
+                                }
+                              }}
+                            >
+                              <SelectTrigger className='w-[140px]'>
+                                <SelectValue placeholder='Assign to...' />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {familyMembers.map((member) => (
+                                  <SelectItem key={member.id} value={member.id}>
+                                    {member.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              onClick={() => setTemplateToDelete(chore.id)}
+                              className='text-destructive'
+                            >
+                              ✕
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
@@ -273,6 +304,26 @@ export default function AdminPanel() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={templateToDelete !== null} onOpenChange={() => setTemplateToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Chore Template</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this chore template? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTemplate}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

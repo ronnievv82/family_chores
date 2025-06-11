@@ -1,14 +1,19 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import type { Chore, FamilyMember } from '@/types'
+import type { Chore, FamilyMember, ChoreTemplate } from '@/types'
 
 interface FamilyContextType {
   familyMembers: FamilyMember[]
+  choreTemplates: ChoreTemplate[]
   setFamilyMembers: (members: FamilyMember[]) => void
+  setChoreTemplates: (templates: ChoreTemplate[]) => void
   addFamilyMember: (name: string) => Promise<void>
   deleteFamilyMember: (id: string) => Promise<void>
   addChore: (memberId: string, chore: Omit<Chore, 'id'>) => Promise<void>
+  addChoreTemplate: (template: Omit<ChoreTemplate, 'id'>) => Promise<ChoreTemplate>
+  deleteChoreTemplate: (id: string) => Promise<void>
+  assignChoreFromTemplate: (templateId: string, memberId: string) => Promise<void>
   toggleChore: (memberId: string, choreId: string) => Promise<void>
   reassignChore: (fromMemberId: string, toMemberId: string, choreId: string) => Promise<void>
   editChore: (memberId: string, choreId: string, updates: Partial<Omit<Chore, 'id'>>) => Promise<void>
@@ -18,7 +23,8 @@ interface FamilyContextType {
 
 const FamilyContext = createContext<FamilyContextType | undefined>(undefined)
 
-const STORAGE_KEY = 'family-chores-data'
+const MEMBERS_STORAGE_KEY = 'family-chores-members'
+const TEMPLATES_STORAGE_KEY = 'family-chores-templates'
 
 const defaultMembers: FamilyMember[] = [
   {
@@ -65,41 +71,78 @@ const defaultMembers: FamilyMember[] = [
   },
 ]
 
+const defaultTemplates: ChoreTemplate[] = [
+  {
+    id: 't1',
+    name: 'Make bed',
+    description: 'Make the bed neatly every morning',
+    recurrence: 'daily',
+    days: [],
+  },
+  {
+    id: 't2',
+    name: 'Clean room',
+    description: 'Tidy up and vacuum the room',
+    recurrence: 'weekly',
+    days: ['Sat'],
+  },
+]
+
 export function FamilyProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState<{ [key: string]: boolean }>({})
   const [error, setError] = useState<string | null>(null)
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([])
+  const [choreTemplates, setChoreTemplates] = useState<ChoreTemplate[]>([])
 
   // Load data from localStorage on mount
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY)
-    if (savedData) {
+    const loadData = () => {
       try {
-        const parsed = JSON.parse(savedData)
-        // Convert date strings back to Date objects
-        const members = parsed.map((member: FamilyMember) => ({
-          ...member,
-          chores: member.chores.map(chore => ({
-            ...chore,
-            dueDate: new Date(chore.dueDate)
+        // Load family members
+        const savedMembers = localStorage.getItem(MEMBERS_STORAGE_KEY)
+        if (savedMembers) {
+          const parsed = JSON.parse(savedMembers)
+          const members = parsed.map((member: FamilyMember) => ({
+            ...member,
+            chores: member.chores.map(chore => ({
+              ...chore,
+              dueDate: new Date(chore.dueDate)
+            }))
           }))
-        }))
-        setFamilyMembers(members)
+          setFamilyMembers(members)
+        } else {
+          setFamilyMembers(defaultMembers)
+        }
+
+        // Load chore templates
+        const savedTemplates = localStorage.getItem(TEMPLATES_STORAGE_KEY)
+        if (savedTemplates) {
+          setChoreTemplates(JSON.parse(savedTemplates))
+        } else {
+          setChoreTemplates(defaultTemplates)
+        }
       } catch (error) {
-        console.error('Failed to parse saved data:', error)
+        console.error('Failed to load saved data:', error)
         setFamilyMembers(defaultMembers)
+        setChoreTemplates(defaultTemplates)
       }
-    } else {
-      setFamilyMembers(defaultMembers)
     }
+
+    loadData()
   }, [])
 
   // Save to localStorage whenever data changes
   useEffect(() => {
     if (familyMembers.length > 0) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(familyMembers))
+      localStorage.setItem(MEMBERS_STORAGE_KEY, JSON.stringify(familyMembers))
     }
   }, [familyMembers])
+
+  useEffect(() => {
+    if (choreTemplates.length > 0) {
+      localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(choreTemplates))
+    }
+  }, [choreTemplates])
 
   const setLoadingState = (key: string, loading: boolean) => {
     setIsLoading((prev) => ({ ...prev, [key]: loading }))
@@ -137,6 +180,72 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       handleError(error, 'Failed to add family member')
       setFamilyMembers((prev) => prev.slice(0, -1))
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
+  const addChoreTemplate = async (template: Omit<ChoreTemplate, 'id'>): Promise<ChoreTemplate> => {
+    const loadingKey = `addTemplate-${template.name}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    try {
+      const newTemplate: ChoreTemplate = {
+        ...template,
+        id: Date.now().toString(),
+      }
+
+      setChoreTemplates((prev) => [...prev, newTemplate])
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      return newTemplate
+    } catch (error) {
+      handleError(error, 'Failed to add chore template')
+      setChoreTemplates((prev) => prev.slice(0, -1))
+      throw error
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
+  const deleteChoreTemplate = async (id: string) => {
+    const loadingKey = `deleteTemplate-${id}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    const previousTemplates = [...choreTemplates]
+
+    try {
+      setChoreTemplates((prev) => prev.filter((template) => template.id !== id))
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    } catch (error) {
+      handleError(error, 'Failed to delete chore template')
+      setChoreTemplates(previousTemplates)
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
+  const assignChoreFromTemplate = async (templateId: string, memberId: string) => {
+    const loadingKey = `assignTemplate-${templateId}-${memberId}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    try {
+      const template = choreTemplates.find((t) => t.id === templateId)
+      if (!template) throw new Error('Template not found')
+
+      const newChore: Omit<Chore, 'id'> = {
+        name: template.name,
+        description: template.description,
+        completed: false,
+        dueDate: new Date(),
+      }
+
+      await addChore(memberId, newChore)
+    } catch (error) {
+      handleError(error, 'Failed to assign chore from template')
+      throw error
     } finally {
       setLoadingState(loadingKey, false)
     }
@@ -315,10 +424,15 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     <FamilyContext.Provider
       value={{
         familyMembers,
+        choreTemplates,
         setFamilyMembers,
+        setChoreTemplates,
         addFamilyMember,
         deleteFamilyMember,
         addChore,
+        addChoreTemplate,
+        deleteChoreTemplate,
+        assignChoreFromTemplate,
         toggleChore,
         reassignChore,
         editChore,
