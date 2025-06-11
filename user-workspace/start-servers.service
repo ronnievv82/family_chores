@@ -1,0 +1,13 @@
+[Unit]
+Description=Start Backend and Frontend Servers for Family Chore Tracker
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/project/sandbox/user-workspace
+ExecStart=/bin/bash /project/sandbox/user-workspace/start-servers.sh
+Restart=on-failure
+User=pi
+
+[Install]
+WantedBy=multi-user.target
