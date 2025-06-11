@@ -11,7 +11,7 @@ export interface ChoreTemplate {
   name: string
   description?: string
   assignedTo?: string
-  recurrence: 'daily' | 'weekly'
+  recurrence: "daily" | "weekly"
   days: string[]
 }
 
