@@ -40,6 +40,57 @@ npm --version
 sudo apt install git -y
 ```
 
+## Updating Installation from Git
+
+To update your existing installation with the latest changes:
+
+```bash
+cd family_chores
+git pull origin main
+```
+
+## Starting the Backend
+
+1. Navigate to the backend directory:
+
+```bash
+cd backend
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the backend server:
+
+```bash
+npm start
+```
+
+## Starting the Frontend
+
+1. Navigate to the root directory of the project:
+
+```bash
+cd family_chores
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the frontend development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:8000`
+
 ## Quick Start (Recommended)
 
 1. Clone the repository:
