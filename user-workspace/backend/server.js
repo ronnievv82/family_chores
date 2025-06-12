@@ -49,6 +49,19 @@ app.delete('/chore-templates/:id', (req, res) => {
   res.status(204).send();
 });
 
+// Unassign a chore from a family member
+app.delete('/family-members/:memberId/chores/:choreId', (req, res) => {
+  const { memberId, choreId } = req.params;
+  const member = familyMembers.find(m => m.id === memberId);
+  
+  if (!member) {
+    return res.status(404).json({ error: 'Member not found' });
+  }
+
+  member.chores = member.chores.filter(c => c.id !== choreId);
+  res.status(204).send();
+});
+
 app.listen(port, () => {
   console.log('Backend API listening at http://localhost:' + port);
 });

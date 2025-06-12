@@ -36,6 +36,7 @@ export default function AdminPanel() {
     deleteChoreTemplate,
     assignChoreFromTemplate,
     deleteFamilyMember,
+    unassignChore,
     isLoading,
     error,
   } = useFamily()
@@ -74,6 +75,14 @@ export default function AdminPanel() {
         days: [],
         recurrence: 'daily',
       })
+    } catch (error) {
+      // Error is handled by the context
+    }
+  }
+
+  const handleUnassignChore = async (memberId: string, choreId: string) => {
+    try {
+      await unassignChore(memberId, choreId)
     } catch (error) {
       // Error is handled by the context
     }
@@ -270,13 +279,48 @@ export default function AdminPanel() {
                             {chore.description && (
                               <p className='text-sm text-muted-foreground'>{chore.description}</p>
                             )}
-                            <div className='flex gap-2 text-sm'>
-                              <span className='text-muted-foreground'>Recurrence:</span>
-                              <span>
-                                {chore.recurrence === 'daily'
-                                  ? 'Daily'
-                                  : `Weekly (${chore.days.join(', ')})`}
-                              </span>
+                            <div className='space-y-2'>
+                              <div className='flex gap-2 text-sm'>
+                                <span className='text-muted-foreground'>Recurrence:</span>
+                                <span>
+                                  {chore.recurrence === 'daily'
+                                    ? 'Daily'
+                                    : `Weekly (${chore.days.join(', ')})`}
+                                </span>
+                              </div>
+                              <div className='flex gap-2 text-sm'>
+                                <span className='text-muted-foreground'>Assigned to:</span>
+                                <div className='flex flex-wrap gap-1'>
+                                  {familyMembers
+                                    .filter((member) =>
+                                      member.chores.some((c) => c.name === chore.name)
+                                    )
+                                    .map((member) => (
+                                      <span
+                                        key={member.id}
+                                        className='inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs'
+                                      >
+                                        <div
+                                          className={`${member.color} h-2 w-2 rounded-full`}
+                                        ></div>
+                                        {member.name}
+                                        <button
+                                          onClick={(e) => {
+                                            e.preventDefault()
+                                            const choreToUnassign = member.chores.find(c => c.name === chore.name)
+                                            if (choreToUnassign) {
+                                              unassignChore(member.id, choreToUnassign.id)
+                                            }
+                                          }}
+                                          className="ml-1 text-muted-foreground hover:text-destructive"
+                                          aria-label={`Unassign chore from ${member.name}`}
+                                        >
+                                          ×
+                                        </button>
+                                      </span>
+                                    ))}
+                                </div>
+                              </div>
                             </div>
                           </div>
                           <div className='flex gap-2'>
