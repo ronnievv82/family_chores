@@ -4,6 +4,8 @@ export interface Chore {
   description?: string
   completed: boolean
   dueDate: Date
+  recurrence: 'daily' | 'weekly'
+  days: string[]
 }
 
 export interface ChoreTemplate {

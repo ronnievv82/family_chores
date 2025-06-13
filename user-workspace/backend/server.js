@@ -49,6 +49,34 @@ app.delete('/chore-templates/:id', (req, res) => {
   res.status(204).send();
 });
 
+// Assign a chore from template to a family member
+app.post('/family-members/:memberId/chores/template/:templateId', (req, res) => {
+  const { memberId, templateId } = req.params;
+  const member = familyMembers.find(m => m.id === memberId);
+  
+  if (!member) {
+    return res.status(404).json({ error: 'Member not found' });
+  }
+
+  const template = choreTemplates.find(t => t.id === templateId);
+  if (!template) {
+    return res.status(404).json({ error: 'Template not found' });
+  }
+
+  const newChore = {
+    id: Date.now().toString(),
+    name: template.name,
+    description: template.description,
+    completed: false,
+    dueDate: new Date(),
+    recurrence: template.recurrence,
+    days: template.days
+  };
+
+  member.chores.push(newChore);
+  res.status(201).json(newChore);
+});
+
 // Unassign a chore from a family member
 app.delete('/family-members/:memberId/chores/:choreId', (req, res) => {
   const { memberId, choreId } = req.params;

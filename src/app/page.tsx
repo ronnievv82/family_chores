@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useFamily } from '@/contexts/family-context'
 import type { FamilyMember, Chore } from '@/types'
+import { isTodaysChore } from '@/utils/date'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -90,7 +91,15 @@ function HomePage() {
                 This Week&apos;s Schedule
               </h2>
             )}
-            {familyMembers.map((member: FamilyMember) => (
+            {familyMembers.map((member: FamilyMember) => {
+              // Filter chores based on view
+              const filteredChores = useMemo(() => {
+                return member.chores.filter(chore => 
+                  view === 'week' ? true : isTodaysChore(chore)
+                )
+              }, [member.chores, view])
+
+              return (
               <Card
                 key={member.id}
                 className='p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg'
@@ -107,7 +116,7 @@ function HomePage() {
                     </h2>
                   </div>
                 </div>
-                {member.chores.length === 0 ? (
+                {filteredChores.length === 0 ? (
                   <p className='italic text-muted-foreground duration-300 animate-in fade-in'>
                     {view === 'today'
                       ? 'No chores assigned yet!'
@@ -115,7 +124,7 @@ function HomePage() {
                   </p>
                 ) : (
                   <ul className='space-y-2'>
-                    {member.chores.map((chore: Chore) => (
+                    {filteredChores.map((chore: Chore) => (
                       <li
                         key={chore.id}
                         className='flex items-center justify-between rounded-md p-2 transition-all duration-300 hover:bg-primary/5'
@@ -158,7 +167,7 @@ function HomePage() {
                   </ul>
                 )}
               </Card>
-            ))}
+            )})}
           </div>
         )}
       </main>

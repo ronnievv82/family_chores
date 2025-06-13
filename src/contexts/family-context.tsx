@@ -16,6 +16,7 @@ interface FamilyContextType {
   assignChoreFromTemplate: (templateId: string, memberId: string) => Promise<void>
   toggleChore: (memberId: string, choreId: string) => Promise<void>
   reassignChore: (fromMemberId: string, toMemberId: string, choreId: string) => Promise<void>
+  unassignChore: (memberId: string, choreId: string) => Promise<void>
   editChore: (
     memberId: string,
     choNeed Help
@@ -275,25 +276,30 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     setError(null)
 
     try {
-      const template = choreTemplates.find((t) => t.id === templateId)
-      if (!template) throw new Error('Template not found')
-
-      const newChore: Omit<Chore, 'id'> = {
-        name: template.name,
-        description: template.description,
-        completed: false,
-        dueDate: new Date(),
-      }
-
-      const response = await fetch(`http://localhost:3001/family-members/${memberId}/chores`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newChore),
-      })
+      const response = await fetch(
+        `http://localhost:3001/family-members/${memberId}/chores/template/${templateId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
 
       if (!response.ok) {
         throw new Error('Failed to assign chore from template')
       }
+
+      const newChore = await response.json()
+      
+      setFamilyMembers((members) =>
+        members.map((member) =>
+          member.id === memberId
+            ? {
+                ...member,
+                chores: [...member.chores, newChore],
+              }
+            : member
+        )
+      )
     } catch (error) {
       handleError(error, 'Failed to assign chore from template')
       throw error
@@ -441,6 +447,32 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const unassignChore = async (memberId: string, choreId: string) => {
+    const loadingKey = `unassignChore-${memberId}-${choreId}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    const previousMembers = [...familyMembers]
+
+    try {
+      setFamilyMembers((members) =>
+        members.map((member) =>
+          member.id === memberId
+            ? {
+                ...member,
+                chores: member.chores.filter((chore) => chore.id !== choreId),
+              }
+            : member
+        )
+      )
+    } catch (error) {
+      handleError(error, 'Failed to unassign chore')
+      setFamilyMembers(previousMembers)
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
   const editChore = async (
     memberId: string,
     choreId: string,
@@ -520,6 +552,43 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const unassignChore = async (memberId: string, choreId: string) => {
+    const loadingKey = `unassignChore-${memberId}-${choreId}`
+    setLoadingState(loadingKey, true)
+    setError(null)
+
+    const previousMembers = [...familyMembers]
+
+    try {
+      const response = await fetch(
+        `http://localhost:3001/family-members/${memberId}/chores/${choreId}`,
+        {
+          method: 'DELETE',
+        }
+      )
+
+      if (!response.ok) {
+        throw new Error('Failed to unassign chore')
+      }
+
+      setFamilyMembers((members) =>
+        members.map((member) =>
+          member.id === memberId
+            ? {
+                ...member,
+                chores: member.chores.filter((chore) => chore.id !== choreId),
+              }
+            : member
+        )
+      )
+    } catch (error) {
+      handleError(error, 'Failed to unassign chore')
+      setFamilyMembers(previousMembers)
+    } finally {
+      setLoadingState(loadingKey, false)
+    }
+  }
+
   return (
     <FamilyContext.Provider
       value={{
@@ -535,6 +604,7 @@ export function FamilyProvider({ children }: { children: ReactNode }) {
         assignChoreFromTemplate,
         toggleChore,
         reassignChore,
+        unassignChore,
         editChore,
         isLoading,
         error,
